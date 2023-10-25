@@ -11,21 +11,37 @@ import {
 } from '@chakra-ui/react';
 import { Alchemy, Network } from 'alchemy-sdk';
 import { useState } from 'react';
+import useWallet from './wallet';
+
+const config = {
+  apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
+  network: Network.ETH_MAINNET,
+};
+
+const alchemy = new Alchemy(config);
 
 function App() {
-  const [userAddress, setUserAddress] = useState('');
   const [results, setResults] = useState([]);
   const [hasQueried, setHasQueried] = useState(false);
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [address, connectWallet] = useWallet();
+
+  async function connect() {
+    setIsLoading(true);
+
+    await connectWallet()
+      .then(() => {
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+    
+  }
 
   async function getNFTsForOwner() {
-    const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
-      network: Network.ETH_MAINNET,
-    };
-
-    const alchemy = new Alchemy(config);
-    const data = await alchemy.nft.getNftsForOwner(userAddress);
+    setIsLoading(true);
+    const data = await alchemy.nft.getNftsForOwner(address);
     setResults(data);
 
     const tokenDataPromises = [];
@@ -40,6 +56,7 @@ function App() {
 
     setTokenDataObjects(await Promise.all(tokenDataPromises));
     setHasQueried(true);
+    setIsLoading(false);
   }
   return (
     <Box w="100vw">
@@ -63,9 +80,10 @@ function App() {
         alignItems="center"
         justifyContent={'center'}
       >
+        <img src='spinner.gif' className={isLoading ? 'spinner' : 'spinner hide'}></img>
         <Heading mt={42}>Get all the ERC-721 tokens of this address:</Heading>
         <Input
-          onChange={(e) => setUserAddress(e.target.value)}
+          value={address}
           color="black"
           w="600px"
           textAlign="center"
@@ -73,7 +91,10 @@ function App() {
           bgColor="white"
           fontSize={24}
         />
-        <Button fontSize={20} onClick={getNFTsForOwner} mt={36} bgColor="blue">
+        <Button fontSize={20} onClick={connect} mt={36} bgColor="green">
+          Connect Wallet
+        </Button>
+        <Button fontSize={20} onClick={getNFTsForOwner} mt={36} bgColor="blue" isDisabled={!address}>
           Fetch NFTs
         </Button>
 
